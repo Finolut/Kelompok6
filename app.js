@@ -143,3 +143,161 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
     }
   });
 });
+
+// ========== MODULE 1: PRESENSI QR ==========
+// Dosen View
+const btnGenQR = document.getElementById('btn-generate-qr');
+if (btnGenQR) {
+  btnGenQR.addEventListener('click', async () => {
+    const course_id = document.getElementById('course-id').value;
+    const session_id = document.getElementById('session-id').value;
+
+    if (!course_id || !session_id) return showToast('Isi Course ID & Session ID!', 'error');
+
+    const payload = {
+      course_id, session_id,
+      ts: getTs()
+    };
+
+    const btn = document.getElementById('btn-generate-qr');
+    btn.innerText = 'Generating...';
+
+    try {
+      const res = await apiFetch('/presence/qr/generate', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        const { qr_token, expires_at } = res.data;
+        document.getElementById('qr-result').classList.remove('hidden');
+        document.getElementById('lbl-qr-token').innerText = qr_token;
+        document.getElementById('lbl-qr-expiry').innerText = new Date(expires_at).toLocaleTimeString();
+
+        // Render QR
+        const qrBox = document.getElementById('qrcode-display');
+        qrBox.innerHTML = '';
+        if (typeof QRCode !== 'undefined') {
+          // Menggunakan qrcodejs (Library standar Google Apps Script & web pure)
+          new QRCode(qrBox, {
+            text: qr_token,
+            width: 250, 
+            height: 250, 
+            colorDark: "#0b0f19", 
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+          });
+        }
+        showToast('QR Token Generated!', 'success');
+      } else {
+        showToast(`Error: ${res.error}`, 'error');
+      }
+    } catch (e) { console.error(e); } finally {
+      btn.innerText = 'Generate QR Token';
+    }
+  });
+}
+
+// Scanner Logic
+let html5QrcodeScanner = null;
+const btnStartScan = document.getElementById('btn-start-scan');
+if (btnStartScan) {
+  btnStartScan.addEventListener('click', () => {
+    document.getElementById('reader').classList.remove('hidden');
+    document.getElementById('btn-start-scan').classList.add('hidden');
+    document.getElementById('btn-stop-scan').classList.remove('hidden');
+
+    if (typeof Html5QrcodeScanner !== 'undefined') {
+      html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+      html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    }
+  });
+}
+
+const btnStopScan = document.getElementById('btn-stop-scan');
+if (btnStopScan) {
+  btnStopScan.addEventListener('click', () => {
+    if (html5QrcodeScanner) {
+      html5QrcodeScanner.clear().then(() => {
+        document.getElementById('reader').classList.add('hidden');
+        document.getElementById('btn-start-scan').classList.remove('hidden');
+        document.getElementById('btn-stop-scan').classList.add('hidden');
+      });
+    }
+  });
+}
+
+function onScanFailure(error) { /* ignore frequent fail events */ }
+function onScanSuccess(decodedText, decodedResult) {
+  document.getElementById('manual-token').value = decodedText;
+  showToast(`Token Scanned: ${decodedText}`, 'success');
+  if (html5QrcodeScanner) {
+    document.getElementById('btn-stop-scan').click();
+  }
+  document.getElementById('btn-checkin').click();
+}
+
+// Checkin Request
+const btnCheckin = document.getElementById('btn-checkin');
+if (btnCheckin) {
+  btnCheckin.addEventListener('click', async () => {
+    const qr_token = document.getElementById('manual-token').value;
+    const user_id = document.getElementById('user-id').value;
+    const course_id = document.getElementById('course-id').value;
+    const session_id = document.getElementById('session-id').value;
+
+    if (!qr_token || !user_id) return showToast('NIM & Token wajib diisi!', 'error');
+
+    const payload = {
+      user_id, device_id: getDeviceId(),
+      course_id, session_id,
+      qr_token, ts: getTs()
+    };
+
+    const btn = document.getElementById('btn-checkin');
+    btn.innerText = 'Sending...';
+
+    try {
+      const res = await apiFetch('/presence/checkin', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      if (res && res.ok) {
+        showToast('Check-in Berhasil!', 'success');
+        document.getElementById('status-result').classList.remove('hidden');
+        const badge = document.getElementById('lbl-status');
+        badge.innerText = res.data.status;
+        badge.className = `badge status-${res.data.status}`;
+      }
+    } catch (e) { console.error(e); } finally { btn.innerText = 'Check-in'; }
+  });
+}
+
+// Check Status
+const btnCheckStatus = document.getElementById('btn-check-status');
+if (btnCheckStatus) {
+  btnCheckStatus.addEventListener('click', async () => {
+    const user_id = document.getElementById('user-id').value;
+    const course_id = document.getElementById('course-id').value;
+    const session_id = document.getElementById('session-id').value;
+
+    if (!user_id) return showToast('NIM wajib diisi untuk cek status', 'error');
+
+    const btn = document.getElementById('btn-check-status');
+    btn.innerText = 'Mengecek...';
+
+    try {
+      const qs = new URLSearchParams({ user_id, course_id, session_id }).toString();
+      const res = await apiFetch(`/presence/status?${qs}`, { method: 'GET' });
+
+      if (res && res.ok) {
+        document.getElementById('status-result').classList.remove('hidden');
+        const badge = document.getElementById('lbl-status');
+        badge.innerText = res.data.status;
+        badge.className = `badge status-${res.data.status}`;
+        showToast('Status ditarik dari server', 'success');
+      }
+    } catch (e) { console.error(e); } finally { btn.innerText = 'Cek Status Saya'; }
+  });
+}
