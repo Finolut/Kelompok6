@@ -301,3 +301,153 @@ if (btnCheckStatus) {
     } catch (e) { console.error(e); } finally { btn.innerText = 'Cek Status Saya'; }
   });
 }
+
+// ========== MODULE 2: ACCELEROMETER ==========
+let accelChartInit = null;
+let accelInterval = null;
+let accelBatch = [];
+let lastMotion = { x: 0, y: 0, z: 0 };
+const BATCH_LIMIT = 5; // Send every 5 samples
+const SAMPLE_RATE_MS = 1000; // Take sample every 1s
+
+// Listen device motion, save to latest memory
+window.addEventListener('devicemotion', (event) => {
+  if (event.accelerationIncludingGravity) {
+    lastMotion.x = event.accelerationIncludingGravity.x || 0;
+    lastMotion.y = event.accelerationIncludingGravity.y || 0;
+    lastMotion.z = event.accelerationIncludingGravity.z || 0;
+  }
+});
+
+// For PC Demo Simulation if no accelerometer
+function simulateMotion() {
+  lastMotion.x = Math.sin(Date.now() / 1000) * 10;
+  lastMotion.y = Math.cos(Date.now() / 1000) * 10;
+  lastMotion.z = 9.8 + (Math.random() - 0.5);
+}
+
+const btnStartAccel = document.getElementById('btn-start-accel');
+if (btnStartAccel) {
+  btnStartAccel.addEventListener('click', () => {
+    document.getElementById('btn-start-accel').classList.add('hidden');
+    document.getElementById('btn-stop-accel').classList.remove('hidden');
+    document.getElementById('sensor-dot').classList.add('active');
+
+    // Create chart if not exists
+    if (!accelChartInit && typeof Chart !== 'undefined') initAccelChart();
+
+    accelInterval = setInterval(() => {
+      // Check if real device motion exists, otherwise inject simulated fallback for testing in PC browser
+      if (lastMotion.x === 0 && lastMotion.y === 0 && lastMotion.z === 0) simulateMotion();
+
+      // Update UI Realtime
+      document.getElementById('sens-x').innerText = lastMotion.x.toFixed(2);
+      document.getElementById('sens-y').innerText = lastMotion.y.toFixed(2);
+      document.getElementById('sens-z').innerText = lastMotion.z.toFixed(2);
+
+      // Push target
+      accelBatch.push({
+        t: getTs(),
+        x: parseFloat(lastMotion.x.toFixed(3)),
+        y: parseFloat(lastMotion.y.toFixed(3)),
+        z: parseFloat(lastMotion.z.toFixed(3))
+      });
+
+      const count = accelBatch.length;
+      document.getElementById('batch-count').innerText = count;
+      document.getElementById('batch-progress').value = count;
+      document.getElementById('batch-progress').max = BATCH_LIMIT;
+
+      if (accelBatch.length >= BATCH_LIMIT) {
+        sendAccelBatch([...accelBatch]); // Send copy
+        accelBatch = []; // Reset array  
+        document.getElementById('batch-count').innerText = 0;
+        document.getElementById('batch-progress').value = 0;
+      }
+    }, SAMPLE_RATE_MS);
+  });
+}
+
+const btnStopAccel = document.getElementById('btn-stop-accel');
+if (btnStopAccel) {
+  btnStopAccel.addEventListener('click', () => {
+    clearInterval(accelInterval);
+    document.getElementById('btn-start-accel').classList.remove('hidden');
+    document.getElementById('btn-stop-accel').classList.add('hidden');
+    document.getElementById('sensor-dot').classList.remove('active');
+  });
+}
+
+async function sendAccelBatch(samples) {
+  const payload = {
+    device_id: getDeviceId(),
+    ts: getTs(),
+    samples: samples
+  };
+
+  try {
+    const res = await apiFetch('/telemetry/accel', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    if (res && res.ok) {
+      showToast(`Batch sent: ${samples.length} records`, 'success');
+    }
+  } catch (e) { console.error(e); }
+}
+
+// Chart Instance
+function initAccelChart() {
+  const ctx = document.getElementById('accelChart').getContext('2d');
+  accelChartInit = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        { label: 'X', borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68,0.1)', data: [], borderWidth: 2, pointRadius: 2 },
+        { label: 'Y', borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94,0.1)', data: [], borderWidth: 2, pointRadius: 2 },
+        { label: 'Z', borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246,0.1)', data: [], borderWidth: 2, pointRadius: 2 }
+      ]
+    },
+    options: {
+      responsive: true,
+      animation: { duration: 300 },
+      scales: {
+        x: { display: false },
+        y: { beginAtZero: false }
+      },
+      plugins: { legend: { labels: { color: '#f1f5f9' } } }
+    }
+  });
+}
+
+const btnFetchAccel = document.getElementById('btn-fetch-accel');
+if (btnFetchAccel) {
+  btnFetchAccel.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-fetch-accel');
+    btn.innerHTML = `<i class="ph ph-spinner-gap"></i> Fetching...`;
+    try {
+      const res = await apiFetch(`/telemetry/accel/latest?device_id=${getDeviceId()}`);
+      if (res && res.ok && res.data) {
+        const d = res.data;
+        document.getElementById('lbl-accel-time').innerText = new Date(d.t).toLocaleTimeString();
+
+        // Add point to chart
+        if (accelChartInit) {
+          const timeLab = new Date(d.t).getSeconds();
+          accelChartInit.data.labels.push(timeLab);
+          accelChartInit.data.datasets[0].data.push(d.x);
+          accelChartInit.data.datasets[1].data.push(d.y);
+          accelChartInit.data.datasets[2].data.push(d.z);
+
+          if (accelChartInit.data.labels.length > 20) {
+            accelChartInit.data.labels.shift();
+            accelChartInit.data.datasets.forEach(ds => ds.data.shift());
+          }
+          accelChartInit.update();
+        }
+        showToast('Data sensor diperbarui', 'success');
+      }
+    } catch (e) { console.error(e); } finally { btn.innerHTML = `<i class="ph ph-arrows-clockwise"></i> Fetch Latest`; }
+  });
+}
