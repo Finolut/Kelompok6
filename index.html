@@ -1,24 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Cloud Computing - Smart Presence & Telemetry</title>
-  
+
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  
+
   <!-- Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  
+
   <!-- Leaflet CSS for Map -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
   <!-- Custom CSS -->
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
   <!-- Toast Notification Container -->
@@ -29,56 +32,81 @@
   <div class="bg-orb orb-2"></div>
   <div class="bg-orb orb-3"></div>
 
-  <main class="app-container glass-panel">
-    
-    <!-- Sidebar / Header -->
-    <header class="app-header">
-      <div class="header-brand">
-        <i class="ph-fill ph-cloud-lightning"></i>
-        <h1>Cloud<span class="gradient-text">Sync</span></h1>
-      </div>
-      <div class="device-info">
-        <div class="input-group url-group">
-          <label>SERVER URL</label>
-          <input type="text" id="global-base-url" value="https://script.google.com/macros/s/AKfycbxi9U-Fy-KBNtDDMZkpGCmAPNEpApeJh8q2kHLadbEi313CpOOPWpKHE35cwCJ-UBcS/exec" placeholder="https://script.google.com/.../exec">
-        </div>
-        <div class="input-group">
-          <label>DEVICE ID</label>
-          <input type="text" id="global-device-id" value="dev-101">
+  <main class="app-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar glass-sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon"><i class="ph-fill ph-cloud-lightning"></i></div>
+          <h1>Cloud<span class="text-gradient">Sync</span></h1>
         </div>
       </div>
-      <nav class="app-nav">
-        <button class="nav-btn active" data-target="modul-1">
-          <i class="ph ph-qr-code"></i> Presensi QR
-        </button>
-        <button class="nav-btn" data-target="modul-2">
-          <i class="ph ph-activity"></i> Accelerometer
-        </button>
-        <button class="nav-btn" data-target="modul-3">
-          <i class="ph ph-map-pin-line"></i> GPS Tracking
-        </button>
-      </nav>
-    </header>
+
+      <div class="sidebar-section">
+        <span class="section-title">CONFIGURATION</span>
+        <div class="input-modern">
+          <i class="ph ph-link"></i>
+          <input type="text" id="global-base-url"
+            value="https://script.google.com/macros/s/AKfycbxi9U-Fy-KBNtDDMZkpGCmAPNEpApeJh8q2kHLadbEi313CpOOPWpKHE35cwCJ-UBcS/exec"
+            placeholder="Server URL" title="Server URL">
+        </div>
+        <div class="input-modern">
+          <i class="ph ph-device-mobile"></i>
+          <input type="text" id="global-device-id" value="dev-101" placeholder="Device ID" title="Device ID">
+        </div>
+      </div>
+
+      <div class="sidebar-section nav-section">
+        <span class="section-title">MODULES</span>
+        <nav class="app-nav">
+          <button class="nav-btn active" data-target="modul-1">
+            <i class="ph ph-qr-code"></i> <span>Presensi QR</span>
+          </button>
+          <button class="nav-btn" data-target="modul-2">
+            <i class="ph ph-activity"></i> <span>Accelerometer</span>
+          </button>
+          <button class="nav-btn" data-target="modul-3">
+            <i class="ph ph-map-pin-line"></i> <span>GPS Tracking</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <p>Premium Interface</p>
+      </div>
+    </aside>
 
     <!-- Main Content Area -->
-    <div class="content-area">
-      
+    <div class="content-area glass-panel">
+
       <!-- Modul 1: Presensi QR Dinamis -->
       <section id="modul-1" class="module-section active">
         <div class="section-header">
-          <h2><i class="ph ph-qr-code"></i> Presensi QR Dinamis</h2>
-          <p>Generate, Scan, & Check-in Presence System</p>
+          <div class="header-icon"><i class="ph ph-qr-code"></i></div>
+          <div class="header-text">
+            <h2>Presensi QR Dinamis</h2>
+            <p>Generate, Scan, & Check-in Presence System</p>
+          </div>
         </div>
-        
+
         <div class="grid-2">
           <!-- Dosen View -->
           <div class="card glass-card">
-            <h3>Role: Dosen (Generate QR)</h3>
-            <div class="form-group">
-              <input type="text" id="course-id" placeholder="Course ID (e.g. cloud-101)" value="cloud-101">
-              <input type="text" id="session-id" placeholder="Session ID (e.g. sesi-02)" value="sesi-02">
-              <button id="btn-generate-qr" class="btn btn-primary">Generate QR Token</button>
+            <div class="card-title">
+              <i class="ph ph-chalkboard-teacher"></i> Role: Dosen (Generate QR)
             </div>
+            <div class="form-group row">
+              <div class="input-modern">
+                <input type="text" id="course-id" placeholder="Course ID (e.g. cloud-101)" value="cloud-101">
+              </div>
+              <div class="input-modern">
+                <input type="text" id="session-id" placeholder="Session ID (e.g. sesi-02)" value="sesi-02">
+              </div>
+            </div>
+            <button id="btn-generate-qr" class="btn btn-primary btn-full mt-2">
+              <i class="ph ph-qr-code"></i> Generate QR Token
+            </button>
             <div class="qr-result hidden" id="qr-result">
               <div id="qrcode-display" class="qr-box"></div>
               <p class="token-text">Token: <span id="lbl-qr-token">-</span></p>
@@ -88,27 +116,37 @@
 
           <!-- Mahasiswa View -->
           <div class="card glass-card">
-            <h3>Role: Mahasiswa (Scan & Check-in)</h3>
-            <div class="form-group">
-              <input type="text" id="user-id" placeholder="User ID (NIM)" value="20230001">
+            <div class="card-title">
+              <i class="ph ph-student"></i> Role: Mahasiswa (Scan & Check-in)
             </div>
-            <div id="reader" style="width:100%; border-radius: 12px; overflow: hidden;" class="hidden"></div>
-            
-            <div class="scan-actions">
-              <button id="btn-start-scan" class="btn btn-secondary"><i class="ph ph-camera"></i> Start Scanner</button>
-              <button id="btn-stop-scan" class="btn btn-danger hidden"><i class="ph ph-stop-circle"></i> Stop</button>
+            <div class="form-group row">
+              <div class="input-modern">
+                <i class="ph ph-identification-card"></i>
+                <input type="text" id="user-id" placeholder="User ID (NIM)" value="20230001">
+              </div>
             </div>
-            
+            <div id="reader" class="scanner-box hidden"></div>
+
+            <div class="scan-actions mt-3">
+              <button id="btn-start-scan" class="btn btn-secondary btn-full"><i class="ph ph-scan"></i> Start
+                Scanner</button>
+              <button id="btn-stop-scan" class="btn btn-danger btn-full hidden"><i class="ph ph-stop-circle"></i> Stop
+                Scanner</button>
+            </div>
+
             <div class="manual-checkin">
               <p class="divider"><span>OR MANUAL TOKEN</span></p>
               <div class="form-group row">
-                <input type="text" id="manual-token" placeholder="Scanned Token">
-                <button id="btn-checkin" class="btn btn-primary">Check-in</button>
+                <div class="input-modern flex-1">
+                  <input type="text" id="manual-token" placeholder="Scanned Token">
+                </div>
+                <button id="btn-checkin" class="btn btn-primary"><i class="ph ph-check-circle"></i> Check-in</button>
               </div>
             </div>
 
-            <div class="status-box">
-              <button id="btn-check-status" class="btn btn-outline btn-full">Cek Status Saya</button>
+            <div class="status-box mt-3">
+              <button id="btn-check-status" class="btn btn-outline btn-full"><i class="ph ph-arrows-clockwise"></i> Cek
+                Status Saya</button>
               <div id="status-result" class="status-result hidden">
                 <h4>Status: <span id="lbl-status" class="badge">Unknown</span></h4>
               </div>
@@ -119,39 +157,56 @@
 
       <!-- Modul 2: Accelerometer -->
       <section id="modul-2" class="module-section">
-         <div class="section-header">
-          <h2><i class="ph ph-activity"></i> Telemetry: Accelerometer</h2>
-          <p>Kirim batch data sensor 3-axis & ambil riwayat terakhir secara live</p>
+        <div class="section-header">
+          <div class="header-icon"><i class="ph ph-activity"></i></div>
+          <div class="header-text">
+            <h2>Telemetry: Accelerometer</h2>
+            <p>Live 3-axis motion sensing & data sync</p>
+          </div>
         </div>
-        
+
         <div class="grid-2">
           <!-- Client Sensor -->
           <div class="card glass-card">
-            <h3><span class="pulse-dot" id="sensor-dot"></span> Local Sensor Status</h3>
-            <div class="sensor-readings">
-              <div class="reading-box"><label>X</label> <div id="sens-x">0.00</div></div>
-              <div class="reading-box"><label>Y</label> <div id="sens-y">0.00</div></div>
-              <div class="reading-box"><label>Z</label> <div id="sens-z">0.00</div></div>
+            <div class="card-title">
+              <span class="pulse-dot" id="sensor-dot"></span> Local Sensor Status
             </div>
-            <div class="batch-info">
-              <p>Buffer Server: <span id="batch-count">0</span> / 10 samples</p>
+            <div class="sensor-readings">
+              <div class="reading-box"><label>X-AXIS</label>
+                <div id="sens-x">0.00</div>
+              </div>
+              <div class="reading-box"><label>Y-AXIS</label>
+                <div id="sens-y">0.00</div>
+              </div>
+              <div class="reading-box"><label>Z-AXIS</label>
+                <div id="sens-z">0.00</div>
+              </div>
+            </div>
+            <div class="batch-info mt-3">
+              <p>Sync Buffer: <span id="batch-count" class="text-accent">0</span> / 10 samples</p>
               <progress id="batch-progress" value="0" max="10"></progress>
             </div>
             <div class="scan-actions mt-3">
-              <button id="btn-start-accel" class="btn btn-primary"><i class="ph ph-play"></i> Mulai Telemetry</button>
-              <button id="btn-stop-accel" class="btn btn-danger hidden"><i class="ph ph-stop"></i> Stop</button>
+              <button id="btn-start-accel" class="btn btn-primary btn-full"><i class="ph ph-play"></i> Mulai
+                Telemetry</button>
+              <button id="btn-stop-accel" class="btn btn-danger btn-full hidden"><i class="ph ph-stop"></i> Stop
+                Telemetry</button>
             </div>
           </div>
 
           <!-- Server Data -->
           <div class="card glass-card">
-            <h3>Data Terbaru dari Server</h3>
-            <button id="btn-fetch-accel" class="btn btn-secondary btn-sm mb-2"><i class="ph ph-arrows-clockwise"></i> Fetch Latest</button>
-            <div class="chart-container">
+            <div class="card-title flex-between">
+              <span><i class="ph ph-cloud-arrow-down"></i> Data dari Server</span>
+              <button id="btn-fetch-accel" class="btn btn-secondary btn-sm"><i class="ph ph-arrows-clockwise"></i>
+                Load</button>
+            </div>
+            <div class="chart-container mt-2">
               <canvas id="accelChart"></canvas>
             </div>
-            <div class="latest-data-box mt-2">
-              <p>Waktu Server: <span id="lbl-accel-time">-</span></p>
+            <div class="latest-data-box mt-2 text-center">
+              <p class="text-xs text-muted">Update Server Terakhir: <span id="lbl-accel-time" class="text-main">-</span>
+              </p>
             </div>
           </div>
         </div>
@@ -160,34 +215,53 @@
       <!-- Modul 3: GPS Tracking & Map -->
       <section id="modul-3" class="module-section">
         <div class="section-header">
-          <h2><i class="ph ph-map-pin-line"></i> Lokasi & Peta (GPS)</h2>
-          <p>Lacak lokasi perangkat secara periodik & verifikasi rute riwayat</p>
+          <div class="header-icon"><i class="ph ph-map-pin-line"></i></div>
+          <div class="header-text">
+            <h2>Location & Tracking</h2>
+            <p>Live device GPS coordinate tracking and history</p>
+          </div>
         </div>
-        
+
         <div class="grid-layout-map">
           <!-- Control Panel -->
           <div class="card glass-card map-controls">
-            <h3>Kontrol GPS</h3>
-            <div class="status-indicator">
+            <div class="card-title"><i class="ph ph-crosshair"></i> Kontrol GPS</div>
+
+            <div class="status-indicator mt-2">
               <i class="ph ph-navigation-arrow"></i>
               <span id="gps-status-text">Standby</span>
             </div>
-            <div class="gps-readings mt-2">
-              <p>Lat: <span id="lbl-lat">-</span></p>
-              <p>Lng: <span id="lbl-lng">-</span></p>
-              <p>Akurasi: <span id="lbl-acc">-</span>m</p>
+
+            <div class="gps-readings mt-3">
+              <div class="coord-box">
+                <span>Latitude</span>
+                <span id="lbl-lat" class="val">-</span>
+              </div>
+              <div class="coord-box">
+                <span>Longitude</span>
+                <span id="lbl-lng" class="val">-</span>
+              </div>
+              <div class="coord-box border-none">
+                <span>Akurasi</span>
+                <span class="val"><span id="lbl-acc">-</span>m</span>
+              </div>
             </div>
+
             <div class="scan-actions mt-3">
-              <button id="btn-start-gps" class="btn btn-primary btn-full"><i class="ph ph-play"></i> Mulai Tracking</button>
-              <button id="btn-stop-gps" class="btn btn-danger btn-full hidden"><i class="ph ph-stop"></i> Stop GPS</button>
+              <button id="btn-start-gps" class="btn btn-primary btn-full"><i class="ph ph-play"></i> Mulai
+                Tracking</button>
+              <button id="btn-stop-gps" class="btn btn-danger btn-full hidden"><i class="ph ph-stop"></i> Stop
+                Tracking</button>
             </div>
 
             <hr class="separator">
 
-            <h3>Ambil Data Peta</h3>
-            <div class="scan-actions fetch-map-actions">
-              <button id="btn-fetch-gps-latest" class="btn btn-secondary btn-full mb-1">Ambil Latest (Marker)</button>
-              <button id="btn-fetch-gps-history" class="btn btn-outline btn-full">Ambil History (Polyline)</button>
+            <div class="card-title"><i class="ph ph-database"></i> Ambil Data Peta</div>
+            <div class="scan-actions fetch-map-actions mt-2">
+              <button id="btn-fetch-gps-latest" class="btn btn-secondary btn-full mb-2"><i class="ph ph-map-pin"></i>
+                Load Latest (Marker)</button>
+              <button id="btn-fetch-gps-history" class="btn btn-outline btn-full"><i class="ph ph-path"></i> Load
+                History (Route)</button>
             </div>
           </div>
 
@@ -203,7 +277,8 @@
 
   <!-- External Libraries -->
   <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- QRCode.js -->
@@ -214,4 +289,5 @@
   <!-- Application Logic -->
   <script src="app.js"></script>
 </body>
+
 </html>
