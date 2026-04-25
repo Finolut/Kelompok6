@@ -36,15 +36,6 @@ async function apiFetch(endpoint, options = {}) {
     queryStr = "&" + queryStr; // parameter tambahan
   }
 
-  // Format URL khusus untuk GAS Swap Test
-  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-
-  // 1. urlPrimary: menggunakan parameter query
-  let urlPrimary = `${cleanBaseUrl}?endpoint=${path}${queryStr}`;
-  // 2. urlFallback: menggunakan REST style (path)
-  let fallbackQueryStr = queryStr ? "?" + queryStr.substring(1) : "";
-  let urlFallback = `${cleanBaseUrl}/${path}${fallbackQueryStr}`;
-
   const isPost = options.method === 'POST';
   const fetchOptions = {
     method: options.method || 'GET',
@@ -58,22 +49,103 @@ async function apiFetch(endpoint, options = {}) {
     fetchOptions.headers['Content-Type'] = 'text/plain';
   }
 
+  let extraQueryParams = "";
+  let actionSegment = path.split('/').pop(); // e.g. 'generate', 'checkin'
+
+  // Injeksikan endpoint/action ke dalam body JSON jika POST, untuk kompatibilitas kelompok lain
+  if (isPost && fetchOptions.body && typeof fetchOptions.body === 'string') {
+    try {
+      let bodyObj = JSON.parse(fetchOptions.body);
+      // Agar backend yang butuh action di payload JSON tetap bisa baca
+      bodyObj.action = path;
+      bodyObj.endpoint = path;
+      bodyObj.path = path; // Alias khusus kelompok ArthaFreestyle dkk
+      fetchOptions.body = JSON.stringify(bodyObj);
+
+      // Tambahkan payload ke param URL agar bisa dibaca via e.parameter di GAS (fallback e.parameter.action dsb)
+      Object.keys(bodyObj).forEach(key => {
+        if (typeof bodyObj[key] !== 'object') {
+          const valStr = String(bodyObj[key]);
+          if (valStr.length < 500) { // amankan param yg terlalu besar agar tidak error
+            extraQueryParams += `&${key}=${encodeURIComponent(valStr)}`;
+          }
+        }
+      });
+    } catch (e) { }
+  }
+
+  // Format URL khusus untuk GAS Swap Test
+  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
+  // 1. urlPrimary: menggunakan parameter query (inject endpoint & action & path)
+  let urlPrimary = `${cleanBaseUrl}?endpoint=${path}&path=${path}&action=${path}&action2=${actionSegment}${queryStr}${extraQueryParams}`;
+  // 2. urlFallback: menggunakan REST style (path)
+  let fallbackQueryStr = queryStr ? "?" + queryStr.substring(1) : "";
+  let urlFallback = `${cleanBaseUrl}/${path}${fallbackQueryStr}${extraQueryParams}`;
+
   const doFetch = async (url) => {
-    console.log(`[API Request] ${fetchOptions.method} ${url}`, isPost && options.body ? JSON.parse(options.body) : '');
+    console.log(`[API Request] ${fetchOptions.method} ${url}`, isPost && fetchOptions.body ? JSON.parse(fetchOptions.body) : '');
 
     const response = await fetch(url, fetchOptions);
     const rawText = await response.text();
-    console.log(`[API Raw Response from ${url}]`, rawText);
+    console.log(`[API Raw Response]`, rawText);
 
     let result;
     try {
-      result = JSON.parse(rawText);
+      let parsed = JSON.parse(rawText);
+
+      if (Array.isArray(parsed)) {
+        // Normalized Array response (contoh fallback: history raw array)
+        result = { ok: true, data: { items: parsed } };
+      } else {
+        result = parsed;
+        // --- NORMALIZE JSON RESPONSE FORMATS ---
+        if (typeof result.ok === 'undefined') {
+          result.ok = (result.status === 'success' || result.status === true || result.success === true || result.code === 200 || !result.error);
+        }
+
+        // Fix Data nesting (jika output flat tanpa object .data)
+        if (result.ok && !result.data) {
+          let clone = { ...result };
+          delete clone.ok; delete clone.error; delete clone.status; delete clone.success; delete clone.message; delete clone.code;
+          if (result.token && !clone.qr_token) clone.qr_token = result.token;
+          // Gunakan object sisa sbg data, fallback message jika kosong
+          result.data = Object.keys(clone).length > 0 ? clone : { message: result.message || "OK", status: result.message || "OK" };
+        } else if (result.ok && result.data) {
+          if (result.data.token && !result.data.qr_token) result.data.qr_token = result.data.token;
+          if (result.data.state && !result.data.status) result.data.status = result.data.state;
+        }
+
+        // Fix Errors format
+        if (!result.ok && !result.error) {
+          result.error = result.message || "Unknown server error";
+        }
+      }
     } catch (e) {
-      throw new Error(`InvalidJSON: ${rawText.substring(0, 50)}`);
+      // --- NORMALIZE RAW TEXT FORMAT ---
+      console.warn("Response is not JSON, applying Raw Format Fallback", e);
+      const strLower = rawText.toLowerCase();
+      // Deteksi error text "action post tidak di kenali" dsb
+      const isErr = strLower.includes('error') || strLower.includes('gagal') || strLower.includes('tidak di kenali') || strLower.includes('not found') || strLower.includes('invalid') || strLower.includes('undefined');
+
+      if (isErr) {
+        throw new Error(`ServerError: (Raw Message) ${rawText.substring(0, 100)}`);
+      }
+
+      // Treat as raw success token / success message
+      result = {
+        ok: true,
+        data: {
+          qr_token: rawText.trim(),
+          status: rawText.trim(),
+          message: rawText.trim(),
+          items: []
+        }
+      };
     }
 
     if (result && !result.ok && result.error) {
-      const errLower = result.error.toLowerCase();
+      const errLower = String(result.error).toLowerCase();
       if (errLower.includes('unknown endpoint') || errLower.includes('unknown_endpoint')) {
         throw new Error(`EndpointError: ${result.error}`);
       }
@@ -92,7 +164,7 @@ async function apiFetch(endpoint, options = {}) {
     // Jika benar-benar error dari logic bisnis server (seperti token_expired), jangan di-retry ke fallback
     if (error.message.startsWith('ServerError:')) {
       const actualError = error.message.replace('ServerError: ', '');
-      showToast(`${actualError}`, 'error'); // Tampilkan error asli server
+      showToast(`${actualError}`, 'error'); // Tampilkan error asli
       throw new Error(actualError);
     }
 
@@ -106,9 +178,6 @@ async function apiFetch(endpoint, options = {}) {
       if (finalMsg.startsWith('ServerError:')) {
         finalMsg = finalMsg.replace('ServerError: ', '');
         showToast(`${finalMsg}`, 'error');
-      } else if (finalMsg.startsWith('InvalidJSON:')) {
-        showToast('Response Server bukan format JSON yang valid.', 'error');
-        finalMsg = "Invalid JSON Response";
       } else {
         showToast(`Gagal menghubungi server: ${finalMsg}`, 'error');
       }
@@ -181,9 +250,9 @@ if (btnGenQR) {
           // Menggunakan qrcodejs (Library standar Google Apps Script & web pure)
           new QRCode(qrBox, {
             text: qr_token,
-            width: 250, 
-            height: 250, 
-            colorDark: "#0b0f19", 
+            width: 250,
+            height: 250,
+            colorDark: "#0b0f19",
             colorLight: "#ffffff",
             correctLevel: QRCode.CorrectLevel.H
           });
@@ -241,23 +310,71 @@ function onScanSuccess(decodedText, decodedResult) {
 const btnCheckin = document.getElementById('btn-checkin');
 if (btnCheckin) {
   btnCheckin.addEventListener('click', async () => {
-    const qr_token = document.getElementById('manual-token').value;
-    const user_id = document.getElementById('user-id').value;
-    const course_id = document.getElementById('course-id').value;
-    const session_id = document.getElementById('session-id').value;
+    const qr_token_raw = document.getElementById('manual-token').value.trim();
+    const user_id = document.getElementById('user-id').value.trim();
+    const course_id = document.getElementById('course-id').value.trim();
+    const session_id = document.getElementById('session-id').value.trim();
 
-    if (!qr_token || !user_id) return showToast('NIM & Token wajib diisi!', 'error');
-
-    const payload = {
-      user_id, device_id: getDeviceId(),
-      course_id, session_id,
-      qr_token, ts: getTs()
-    };
+    if (!qr_token_raw || !user_id) return showToast('NIM & Token wajib diisi!', 'error');
 
     const btn = document.getElementById('btn-checkin');
     btn.innerText = 'Sending...';
 
     try {
+      let isUrl = qr_token_raw.startsWith('http://') || qr_token_raw.startsWith('https://');
+      let parsedToken = qr_token_raw;
+
+      // Fitur Universal: Ekstrak token / Auto-detect URL base jika target merupakan URL
+      if (isUrl) {
+        try {
+          const urlObj = new URL(qr_token_raw);
+          // Set otomatis Base URL jika kosong agar fleksibel
+          const globalUrlInput = document.getElementById('global-base-url');
+          if (globalUrlInput && !globalUrlInput.value) {
+            globalUrlInput.value = urlObj.origin + urlObj.pathname;
+            showToast('Auto-detect Base URL dari QR', 'info');
+          }
+          
+          if (urlObj.searchParams.has('token')) parsedToken = urlObj.searchParams.get('token');
+          else if (urlObj.searchParams.has('qr_token')) parsedToken = urlObj.searchParams.get('qr_token');
+          else if (urlObj.searchParams.has('id')) parsedToken = urlObj.searchParams.get('id');
+          
+          // Fallback: tembak URL langsung secara silent jika backend tsb murni Web App GAS mode GET
+          let getUrl = new URL(qr_token_raw);
+          getUrl.searchParams.set('user_id', user_id);
+          getUrl.searchParams.set('nim', user_id);
+          getUrl.searchParams.set('course_id', course_id);
+          getUrl.searchParams.set('session_id', session_id);
+          fetch(getUrl.toString(), { mode: 'no-cors' }).catch(() => {});
+        } catch (e) {}
+      }
+
+      // Menyiapkan Payload Super Lengkap (Alias segala format parameter)
+      const payload = {
+        user_id: user_id, 
+        nim: user_id, 
+        npm: user_id,
+        device_id: getDeviceId(),
+        course_id: course_id, 
+        makul: course_id,
+        session_id: session_id, 
+        sesi: session_id,
+        qr_token: parsedToken, 
+        token: parsedToken, 
+        ts: getTs()
+      };
+
+      // Injeksi parameter dari URL (misal ?mode=checkin) ke payload
+      // Supaya apiFetch mem-parsingnya ke query string e.parameter GAS 
+      if (isUrl) {
+        try {
+          let urlObj = new URL(qr_token_raw);
+          urlObj.searchParams.forEach((val, key) => {
+            if (!payload[key]) payload[key] = val;
+          });
+        } catch (e) {}
+      }
+
       const res = await apiFetch('/presence/checkin', {
         method: 'POST',
         body: JSON.stringify(payload)
@@ -267,10 +384,18 @@ if (btnCheckin) {
         showToast('Check-in Berhasil!', 'success');
         document.getElementById('status-result').classList.remove('hidden');
         const badge = document.getElementById('lbl-status');
-        badge.innerText = res.data.status;
-        badge.className = `badge status-${res.data.status}`;
+        badge.innerText = res.data.status || 'Hadir';
+        badge.className = `badge status-${(res.data.status || 'hadir').toLowerCase()}`;
+      } else {
+        showToast(`Error: ${res.error || 'Server menolak (invalid token)'}`, 'error');
       }
-    } catch (e) { console.error(e); } finally { btn.innerText = 'Check-in'; }
+    } catch (e) {
+      console.error(e);
+      let msg = e.message.replace('ServerError:', '').replace('EndpointError:', '').trim();
+      showToast(msg, 'error');
+    } finally {
+      btn.innerText = 'Check-in';
+    }
   });
 }
 
